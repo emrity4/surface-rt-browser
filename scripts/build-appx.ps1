@@ -33,7 +33,7 @@ New-Item -ItemType Directory "$layout\Assets" -Force | Out-Null
 $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe.FullName)
 foreach ($size in @(44, 150, 300)) {
     $bmp = New-Object System.Drawing.Bitmap($icon.ToBitmap(), $size, $size)
-    $bmp.Save("$layout\Assets\Square${size}Logo.png", [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Save("$layout\Assets\Square${size}x${size}Logo.png", [System.Drawing.Imaging.ImageFormat]::Png)
     $bmp.Dispose()
 }
 
