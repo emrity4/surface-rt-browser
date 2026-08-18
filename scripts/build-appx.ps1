@@ -22,8 +22,8 @@ Invoke-WebRequest $url -OutFile "$Work\supermium.zip"
 Expand-Archive "$Work\supermium.zip" "$Work\unpacked" -Force
 
 # 2. Locate the executable; its directory becomes the package layout
-$exe = Get-ChildItem "$Work\unpacked" -Recurse -Filter supermium.exe | Select-Object -First 1
-if (-not $exe) { throw "supermium.exe not found in archive" }
+$exe = Get-ChildItem "$Work\unpacked" -Recurse -Filter chrome.exe | Select-Object -First 1
+if (-not $exe) { throw "chrome.exe not found in archive" }
 $layout = $exe.DirectoryName
 Write-Host "Layout: $layout"
 

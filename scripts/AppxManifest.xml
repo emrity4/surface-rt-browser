@@ -19,7 +19,7 @@
     <Resource Language="en-us" />
   </Resources>
   <Applications>
-    <Application Id="App" Executable="supermium.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="App" Executable="chrome.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements DisplayName="Supermium Browser"
                           Description="Supermium Chromium browser"
                           BackgroundColor="#2b5797"
