@@ -44,7 +44,7 @@ if ($tag -match '^(\d+)(?:-r(\d+))?$') {
     $vRev = if ($Matches[2]) { [int]$Matches[2] } else { 0 }
 } else { $vMajor = 0; $vRev = 0 }
 $manifest = [System.IO.File]::ReadAllText("$PSScriptRoot\AppxManifest.xml")
-$manifest = $manifest -replace 'Version="[0-9.]+"', "Version=`"1.0.$vMajor.$vRev`""
+$manifest = $manifest -creplace 'Version="[0-9.]+"', "Version=`"1.0.$vMajor.$vRev`""
 [System.IO.File]::WriteAllText("$layout\AppxManifest.xml", $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
 # ponytail: self-check before packing
