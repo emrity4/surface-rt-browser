@@ -5,7 +5,7 @@
   <Identity Name="SurfaceRtBrowser"
             Publisher="CN=SurfaceRT Browser Publisher"
             Version="1.0.0.0" />
-  <mp:PhoneIdentity PhoneProductId="{A0E5B6C8-3D4E-4A2B-8C9D-1E2F3A4B5C6D}"
+  <mp:PhoneIdentity PhoneProductId="A0E5B6C8-3D4E-4A2B-8C9D-1E2F3A4B5C6D"
                     PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>SurfaceRT Browser</DisplayName>
