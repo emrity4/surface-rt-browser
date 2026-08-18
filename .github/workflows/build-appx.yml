@@ -1,0 +1,33 @@
+name: Build Supermium APPX
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: "Architecture"
+        type: choice
+        default: "64"
+        options: ["32", "64"]
+      version:
+        description: "Supermium release tag (empty = latest)"
+        type: string
+        default: ""
+  schedule:
+    - cron: "0 0 1 * *"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and sign APPX
+        shell: pwsh
+        run: ./scripts/build-appx.ps1 -Arch "${{ inputs.arch || '64' }}" -Version "${{ inputs.version }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: supermium-appx
+          path: out/
+          if-no-files-found: error
