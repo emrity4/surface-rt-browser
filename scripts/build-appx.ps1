@@ -43,9 +43,14 @@ if ($tag -match '^(\d+)(?:-r(\d+))?$') {
     $vMajor = [int]$Matches[1]
     $vRev = if ($Matches[2]) { [int]$Matches[2] } else { 0 }
 } else { $vMajor = 0; $vRev = 0 }
-$manifest = Get-Content "$PSScriptRoot\AppxManifest.xml" -Raw
+$manifest = [System.IO.File]::ReadAllText("$PSScriptRoot\AppxManifest.xml")
 $manifest = $manifest -replace 'Version="[0-9.]+"', "Version=`"1.0.$vMajor.$vRev`""
-Set-Content -Path "$layout\AppxManifest.xml" -Value $manifest -Encoding utf8
+[System.IO.File]::WriteAllText("$layout\AppxManifest.xml", $manifest, (New-Object System.Text.UTF8Encoding($false)))
+
+# ponytail: self-check before packing
+$null = [xml](Get-Content "$layout\AppxManifest.xml" -Raw)
+$head = [System.IO.File]::ReadAllBytes("$layout\AppxManifest.xml")[0..3]
+Write-Host ("Manifest head bytes: " + (($head | ForEach-Object { $_.ToString('X2') }) -join ' '))
 
 # 5. Self-signed code-signing cert (fresh each run; publisher matches the manifest)
 $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Supermium Publisher" `
