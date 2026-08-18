@@ -1,17 +1,7 @@
-name: Build Supermium APPX
+name: Build SurfaceRT Browser APPX
 
 on:
   workflow_dispatch:
-    inputs:
-      arch:
-        description: "Architecture"
-        type: choice
-        default: "64"
-        options: ["32", "64"]
-      version:
-        description: "Supermium release tag (empty = latest)"
-        type: string
-        default: ""
   schedule:
     - cron: "0 0 1 * *"
 
@@ -21,13 +11,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and sign APPX
+      - name: Create signing certificate
         shell: pwsh
-        run: ./scripts/build-appx.ps1 -Arch "${{ inputs.arch || '64' }}" -Version "${{ inputs.version }}"
+        run: |
+          # ponytail: dev cert for sideloading, not a real secret
+          $pw = "Sideload123"
+          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=SurfaceRT Browser Publisher" `
+            -KeyUsage DigitalSignature -KeyExportPolicy Exportable `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
+          Export-PfxCertificate -Cert $cert -FilePath "$PWD\build.pfx" `
+            -Password (ConvertTo-SecureString $pw -AsPlainText -Force) | Out-Null
+          Export-Certificate -Cert $cert -FilePath "$PWD\build.cer" | Out-Null
+
+      - name: Build ARM APPX
+        shell: pwsh
+        run: |
+          $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -products * -requires Microsoft.Component.MSBuild `
+            -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          if (-not $msbuild) { throw "MSBuild not found" }
+          & $msbuild "src\SurfaceRtBrowser\SurfaceRtBrowser.csproj" /restore /m `
+            /p:Configuration=Release /p:Platform=ARM `
+            /p:AppxPackage=true /p:AppxBundle=Never `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateKeyFile="$PWD\build.pfx" `
+            /p:PackageCertificatePassword="Sideload123" `
+            /p:AppxPackageDir="$PWD\AppPackages\"
+          if ($LASTEXITCODE -ne 0) { throw "MSBuild failed" }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: supermium-appx
-          path: out/
+          name: surface-rt-browser
+          path: |
+            AppPackages/
+            build.cer
           if-no-files-found: error
