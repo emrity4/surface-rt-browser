@@ -7,7 +7,8 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # windows-2022: has SDK 10.0.22621 with ARM32 support (windows-latest/2025 dropped arm32 in SDK 26100)
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
