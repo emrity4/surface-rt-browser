@@ -1,9 +1,7 @@
 using System;
-using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Navigation;
 
 namespace SurfaceRtBrowser
 {
@@ -12,7 +10,6 @@ namespace SurfaceRtBrowser
         public App()
         {
             InitializeComponent();
-            Suspending += OnSuspending;
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs e)
@@ -28,10 +25,6 @@ namespace SurfaceRtBrowser
                 rootFrame.Navigate(typeof(MainPage), e.Arguments);
             }
             Window.Current.Activate();
-        }
-
-        private void OnSuspending(object sender, SuspendingEventArgs e)
-        {
         }
     }
 }
