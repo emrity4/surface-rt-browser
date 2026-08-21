@@ -56,13 +56,14 @@ jobs:
           # Create signing cert
           # ponytail: dev cert for sideloading, not a real secret
           $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Apotheosis ARM Publisher" `
-            -CertStoreLocation Cert:\LocalMachine\My `
+            -CertStoreLocation Cert:\CurrentUser\My `
             -HashAlgorithm SHA256 -NotAfter (Get-Date).AddYears(5)
           $thumbprint = $cert.Thumbprint
           Export-Certificate -Cert $cert -FilePath "$PWD\build.cer" | Out-Null
+          Write-Host "Cert thumbprint: $thumbprint"
 
           # Sign using thumbprint (avoids PFX format issues)
-          & $signtool sign /fd SHA256 /sha1 $thumbprint "$PWD\optimized.appx"
+          & $signtool sign /a /fd SHA256 /sha1 $thumbprint "$PWD\optimized.appx"
           if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
 
           $oldSize = [math]::Round((Get-Item "$PWD\input.appx").Length/1MB,1)
