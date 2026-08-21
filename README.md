@@ -4,36 +4,27 @@ Packages the [Project Apotheosis](https://github.com/MoonlightLabCN/Project-Apot
 
 Apotheosis ports WebKitGTK 2.52.4 to ARM32 UWP with JSC JIT + GPU compositing — a real modern browser engine, not an EdgeHTML wrapper.
 
-## What's different from upstream
+## Optimizations over upstream
 
+- **Updated SSL certificates** — latest `cacert.pem` from curl.se (biggest compatibility win: old certs = TLS errors on modern sites)
+- **Stripped debug symbols** — removes `.pdb` files for smaller package
 - **Auto-sync** — weekly workflow monitors upstream releases and auto-publishes here
-- **Installer script** — one-command setup on a connected PC (`scripts/Install-Apotheosis.ps1`)
-- **Release packaging** — clean releases with appx + cer ready to sideload
+- **Installer script** — one-command setup on a connected PC
 
-## Build
-
-**Actions → Package Apotheosis Browser → Run workflow** (or wait for auto-sync).
-
-## Install (device)
+## Install
 
 ### Option A: Installer script (PC connected via USB)
 
 ```powershell
-.\scripts\Install-Apotheosis.ps1 -AppxPath .\Apotheosis_v0.1.8.6_ARM.appx -CerPath .\Apotheosis_v0.1.8.6_ARM.cer
-```
-
-For remote install via Device Portal:
-```powershell
-.\scripts\Install-Apotheosis.ps1 -AppxPath .\Apotheosis_v0.1.8.6_ARM.appx -CerPath .\Apotheosis_v0.1.8.6_ARM.cer -DeviceIP 192.168.1.100
+.\scripts\Install-Apotheosis.ps1 -AppxPath .\optimized.appx -CerPath .\build.cer
 ```
 
 ### Option B: Manual
 
-1. Trust the `.cer` (Trusted Root + Trusted People)
-2. `Add-AppxPackage .\Apotheosis_v0.1.8.6_ARM.appx`
+1. Trust `build.cer` (Trusted Root + Trusted People)
+2. `Add-AppxPackage .\optimized.appx`
 
-## Files
+## Workflows
 
-- `.github/workflows/sync-release.yml` — auto-sync upstream releases
-- `.github/workflows/build-appx.yml` — manual build workflow
-- `scripts/Install-Apotheosis.ps1` — installation helper
+- `build-appx.yml` — download upstream, update certs, repackage (manual trigger)
+- `sync-release.yml` — auto-sync upstream releases (weekly)
