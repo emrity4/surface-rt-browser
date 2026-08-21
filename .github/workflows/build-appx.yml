@@ -1,49 +1,34 @@
-name: Build SurfaceRT Browser APPX
+name: Package Apotheosis Browser
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    # windows-2022: has SDK 10.0.22621 with ARM32 support (windows-latest/2025 dropped arm32 in SDK 26100)
-    runs-on: windows-2022
+  package:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create signing certificate
-        shell: pwsh
+      - name: Fetch latest release
+        id: rel
         run: |
-          # ponytail: dev cert for sideloading, not a real secret
-          $pw = "Sideload123"
-          $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=SurfaceRT Browser Publisher" `
-            -KeyUsage DigitalSignature -KeyExportPolicy Exportable `
-            -CertStoreLocation Cert:\CurrentUser\My `
-            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
-          Export-PfxCertificate -Cert $cert -FilePath "$PWD\build.pfx" `
-            -Password (ConvertTo-SecureString $pw -AsPlainText -Force) | Out-Null
-          Export-Certificate -Cert $cert -FilePath "$PWD\build.cer" | Out-Null
+          RELEASE=$(curl -sL "https://api.github.com/repos/MoonlightLabCN/Project-Apotheosis/releases/latest")
+          TAG=$(echo "$RELEASE" | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")
+          APPX_URL=$(echo "$RELEASE" | python3 -c "import json,sys; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if a['name'].endswith('_ARM.appx')]" | head -1)
+          CER_URL=$(echo "$RELEASE" | python3 -c "import json,sys; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if a['name'].endswith('_ARM.cer')]" | head -1)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "appx_url=$APPX_URL" >> "$GITHUB_OUTPUT"
+          echo "cer_url=$CER_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Build ARM APPX
-        shell: pwsh
+      - name: Download assets
         run: |
-          $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -products * -requires Microsoft.Component.MSBuild `
-            -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
-          if (-not $msbuild) { throw "MSBuild not found" }
-          & $msbuild "src\SurfaceRtBrowser\SurfaceRtBrowser.csproj" /restore /m `
-            /p:Configuration=Release /p:Platform=ARM `
-            /p:AppxPackage=true /p:AppxBundle=Never `
-            /p:AppxPackageSigningEnabled=true `
-            /p:PackageCertificateKeyFile="$PWD\build.pfx" `
-            /p:PackageCertificatePassword="Sideload123" `
-            /p:AppxPackageDir="$PWD\AppPackages\"
-          if ($LASTEXITCODE -ne 0) { throw "MSBuild failed" }
+          mkdir -p out
+          curl -sL "${{ steps.rel.outputs.appx_url }}" -o "out/Apotheosis_${{ steps.rel.outputs.tag }}_ARM.appx"
+          curl -sL "${{ steps.rel.outputs.cer_url }}" -o "out/Apotheosis_${{ steps.rel.outputs.tag }}_ARM.cer"
 
-      - name: Upload artifacts
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: surface-rt-browser
-          path: |
-            AppPackages/
-            build.cer
+          name: apotheosis-arm
+          path: out/
           if-no-files-found: error
