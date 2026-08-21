@@ -1,0 +1,48 @@
+name: Sync Apotheosis Release
+
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for new release
+        id: check
+        run: |
+          LATEST=$(curl -sL "https://api.github.com/repos/MoonlightLabCN/Project-Apotheosis/releases/latest")
+          TAG=$(echo "$LATEST" | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          # Check if we already have this release
+          EXISTING=$(curl -sL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('message',''))" 2>/dev/null)
+          if [ "$EXISTING" = "Not Found" ]; then
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release
+        if: steps.check.outputs.new == 'true'
+        run: |
+          TAG="${{ steps.check.outputs.tag }}"
+          RELEASE=$(curl -sL "https://api.github.com/repos/MoonlightLabCN/Project-Apotheosis/releases/latest")
+          APPX_URL=$(echo "$RELEASE" | python3 -c "import json,sys; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if a['name'].endswith('_ARM.appx')]" | head -1)
+          CER_URL=$(echo "$RELEASE" | python3 -c "import json,sys; [print(a['browser_download_url']) for a in json.load(sys.stdin)['assets'] if a['name'].endswith('_ARM.cer')]" | head -1)
+
+          mkdir -p out
+          curl -sL "$APPX_URL" -o "out/Apotheosis_${TAG}_ARM.appx"
+          curl -sL "$CER_URL" -o "out/Apotheosis_${TAG}_ARM.cer"
+
+          # Create release
+          REL_ID=$(curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" https://api.github.com/repos/${{ github.repository }}/releases -d "{\"tag_name\":\"$TAG\",\"name\":\"Apotheosis $TAG\",\"body\":\"Auto-synced from upstream.\n\nSource: github.com/MoonlightLabCN/Project-Apotheosis\",\"draft\":false,\"prerelease\":false}" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+
+          # Upload assets
+          curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=Apotheosis_${TAG}_ARM.appx" -H "Content-Type: application/octet-stream" --data-binary @out/Apotheosis_${TAG}_ARM.appx > /dev/null
+          curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=Apotheosis_${TAG}_ARM.cer" -H "Content-Type: application/octet-stream" --data-binary @out/Apotheosis_${TAG}_ARM.cer > /dev/null
+
+          echo "Published $TAG"
