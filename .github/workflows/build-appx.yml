@@ -22,64 +22,37 @@ jobs:
           echo "TAG=$tag" >> $env:GITHUB_ENV
           Write-Host "Downloaded $tag ($([math]::Round($appxAsset.size/1MB,1)) MB)"
 
-      - name: Extract, optimize certs, repackage
+      - name: Optimize appx
         shell: pwsh
         run: |
-          # Locate tools
           $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter "makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-          if (-not $makeappx -or -not $signtool) { throw "SDK tools not found" }
+          if (-not $makeappx) { throw "makeappx not found" }
+          Write-Host "makeappx: $makeappx"
 
-          # Unpack
           & $makeappx unpack /p "$PWD\input.appx" /d "$PWD\unpacked" /o
           if ($LASTEXITCODE -ne 0) { throw "makeappx unpack failed" }
 
-          # Update cacert.pem (biggest compatibility win — old certs = TLS errors)
+          # Update cacert.pem
           $cacert = "$PWD\unpacked\cacert.pem"
           if (Test-Path $cacert) {
             $oldHash = (Get-FileHash $cacert -Algorithm MD5).Hash
             Invoke-WebRequest "https://curl.se/ca/cacert.pem" -OutFile $cacert
             $newHash = (Get-FileHash $cacert -Algorithm MD5).Hash
-            Write-Host "cacert.pem updated: $oldHash -> $newHash"
-          } else {
-            Write-Host "No cacert.pem found, skipping"
+            Write-Host "cacert.pem: $oldHash -> $newHash"
           }
 
-          # Strip debug/test files if any
+          # Strip .pdb files
           Get-ChildItem "$PWD\unpacked" -Recurse -Filter "*.pdb" | Remove-Item -Force -ErrorAction SilentlyContinue
-          Get-ChildItem "$PWD\unpacked" -Recurse -Filter "*.pdb" | ForEach-Object { Write-Host "Stripped: $($_.Name)" }
 
           # Repack
-          & $makeappx pack /d "$PWD\unpacked" /p "$PWD\optimized.appx" /o
+          & $makeappx pack /d "$PWD\unpacked" /p "$PWD\UnofficialApotheosis_$env:TAG_ARM.appx" /o
           if ($LASTEXITCODE -ne 0) { throw "makeappx pack failed" }
 
-          # Create signing cert
-          # ponytail: dev cert for sideloading, not a real secret
-          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Apotheosis ARM Publisher" `
-            -CertStoreLocation Cert:\CurrentUser\My `
-            -HashAlgorithm SHA256 -KeyAlgorithm RSA -KeyLength 2048 `
-            -KeySpec Signature -NotAfter (Get-Date).AddYears(5)
-          $thumbprint = $cert.Thumbprint
-          Export-Certificate -Cert $cert -FilePath "$PWD\build.cer" | Out-Null
-          Write-Host "Cert thumbprint: $thumbprint"
-          Write-Host "Cert key algo: $($cert.PublicKey.Oid.FriendlyName)"
-
-          # Export PFX for signing
-          $pw = "ApotheosisSideload"
-          Export-PfxCertificate -Cert $cert -FilePath "$PWD\build.pfx" `
-            -Password (ConvertTo-SecureString $pw -AsPlainText -Force) | Out-Null
-          if (-not (Test-Path "$PWD\build.pfx")) { throw "PFX export failed" }
-
-          # Sign with PFX (most compatible method)
-          & $signtool sign /fd SHA256 /f "$PWD\build.pfx" /p $pw "$PWD\optimized.appx"
-          if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
-
           $oldSize = [math]::Round((Get-Item "$PWD\input.appx").Length/1MB,1)
-          $newSize = [math]::Round((Get-Item "$PWD\optimized.appx").Length/1MB,1)
+          $newSize = [math]::Round((Get-Item "$PWD\UnofficialApotheosis_$env:TAG_ARM.appx").Length/1MB,1)
           Write-Host "Optimized: $oldSize MB -> $newSize MB"
-
-          # Rename to unofficial branding
-          Rename-Item "$PWD\optimized.appx" "$PWD\UnofficialApotheosis_$env:TAG_ARM.appx"
+          Write-Host "Unsigned appx — enable Developer Mode to sideload"
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -87,5 +60,5 @@ jobs:
           name: apotheosis-optimized
           path: |
             UnofficialApotheosis_*.appx
-            build.cer
+            input.cer
           if-no-files-found: error
